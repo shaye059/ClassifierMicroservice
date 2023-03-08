@@ -212,16 +212,6 @@ def get_models():
         elif model == "MLPClassifier":
             mlp_counts[id] = n_trained
 
-    application.logger.debug(
-        "SGD COUNTS: " + str(sgd_counts) + str(list(sgd_counts.values()))
-    )
-    application.logger.debug(
-        "CAT COUNTS: " + str(cat_counts) + str(list(cat_counts.values()))
-    )
-    application.logger.debug(
-        "MLP COUNTS: " + str(mlp_counts) + str(list(mlp_counts.values()))
-    )
-
     # Compute the scores for each model type
     sgd_scores = normalize(np.array(list(sgd_counts.values())))
     cat_scores = normalize(np.array(list(cat_counts.values())))
@@ -233,8 +223,8 @@ def get_models():
     mlp_scores_dict = dict(zip(mlp_counts.keys(), mlp_scores.tolist()))
 
     application.logger.debug("SGD dict: " + str(sgd_scores_dict))
-    application.logger.debug(cat_scores_dict)
-    application.logger.debug(mlp_scores_dict)
+    application.logger.debug("CAT dict: " + str(cat_scores_dict))
+    application.logger.debug("MLP dict: " + str(mlp_scores_dict))
 
     # Query the database again to get the full model statistics
     cursor.execute("SELECT id, model, n_trained FROM classifiers")
