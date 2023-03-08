@@ -1,6 +1,7 @@
 import os
 import mysql.connector.pooling
 
+
 class ConnectionPool:
     def __init__(self, size=5):
         self.size = size
@@ -18,6 +19,7 @@ class ConnectionPool:
 
     def close_all_connections(self):
         self.pool.closeall()
+
 
 def setup_db(conn_pool):
     # Insert the serialized classifier into the database

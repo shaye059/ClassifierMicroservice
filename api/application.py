@@ -14,8 +14,10 @@ connection_pool = ConnectionPool(size=10)
 setup_db(connection_pool)
 
 formatter = logging.Formatter(  # pylint: disable=invalid-name
-    '%(asctime)s %(levelname)s %(process)d ---- %(threadName)s  '
-    '%(module)s : %(funcName)s {%(pathname)s:%(lineno)d} %(message)s','%Y-%m-%dT%H:%M:%SZ')
+    "%(asctime)s %(levelname)s %(process)d ---- %(threadName)s  "
+    "%(module)s : %(funcName)s {%(pathname)s:%(lineno)d} %(message)s",
+    "%Y-%m-%dT%H:%M:%SZ",
+)
 
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
@@ -28,32 +30,36 @@ application.logger.addHandler(handler)
 def health():
     return jsonify({"status": "ok"})
 
-@application.route('/models/', methods=['POST'])
+
+@application.route("/models/", methods=["POST"])
 def create_model():
     # Extract parameters from the request body
-    model = request.json['model']
-    params = request.json['params']
-    d = request.json['d']
-    n_classes = request.json['n_classes']
+    model = request.json["model"]
+    params = request.json["params"]
+    d = request.json["d"]
+    n_classes = request.json["n_classes"]
 
     # Create the classifier object
     clf = None
-    if model == 'SGDClassifier':
+    if model == "SGDClassifier":
         clf = SGDClassifier(**params)
-    elif model == 'CategoricalNB':
+    elif model == "CategoricalNB":
         clf = CategoricalNB(**params)
-    elif model == 'MLPClassifier':
+    elif model == "MLPClassifier":
         clf = MLPClassifier(**params)
     if clf is None:
-        return jsonify({'error': 'Invalid model'}), 400
+        return jsonify({"error": "Invalid model"}), 400
 
     # Serialize the classifier to binary
     conn = connection_pool.get_connection()
     cur = conn.cursor()
-    cur.execute('INSERT INTO db.classifiers (model, params, d, n_classes, clf_bytes) VALUES (%s, %s, %s, %s, %s)', (model, str(params), d, n_classes, pickle.dumps(clf)))
+    cur.execute(
+        "INSERT INTO db.classifiers (model, params, d, n_classes, clf_bytes) VALUES (%s, %s, %s, %s, %s)",
+        (model, str(params), d, n_classes, pickle.dumps(clf)),
+    )
     conn.commit()
     model_id = cur.lastrowid
-    return jsonify({'id': model_id})
+    return jsonify({"id": model_id})
 
 
 @application.route("/models/<int:model_id>/", methods=["GET"])
@@ -84,34 +90,39 @@ def get_model(model_id):
         }
     )
 
-@application.route('/models/<int:model_id>/train/', methods=['POST'])
+
+@application.route("/models/<int:model_id>/train/", methods=["POST"])
 def train_model(model_id):
     # Check inputs
-    x = request.json.get('x')
-    y = request.json.get('y')
+    x = request.json.get("x")
+    y = request.json.get("y")
     application.logger.debug(str(model_id) + " " + str(x) + str(y))
     if x is None or y is None:
         application.logger.error("Bad input!!!!")
-        return jsonify({'error': 'Invalid input data'}), 400
+        return jsonify({"error": "Invalid input data"}), 400
 
     conn = connection_pool.get_connection()
     cur = conn.cursor()
-    query = "SELECT clf_bytes, n_trained, d, n_classes FROM db.classifiers WHERE id = %s"
+    query = (
+        "SELECT clf_bytes, n_trained, d, n_classes FROM db.classifiers WHERE id = %s"
+    )
     cur.execute(query, (model_id,))
     result = cur.fetchone()
 
     if result is None:
         cur.close()
         conn.close()
-        return jsonify({'error': 'Model not found'}), 404
+        return jsonify({"error": "Model not found"}), 404
 
     model_data, n_trained, d, n_classes = result
     x = np.array(x)
-    if len(x) != d or y > n_classes-1:
+    if len(x) != d or y > n_classes - 1:
         application.logger.warning("Dimension of X incorrect")
-        return jsonify({'error': 'Invalid input data'}), 400
+        return jsonify({"error": "Invalid input data"}), 400
 
-    application.logger.error(f"TRAINING model {model_id} on {x} with expected value {y} and {n_classes} classes.")
+    application.logger.error(
+        f"TRAINING model {model_id} on {x} with expected value {y} and {n_classes} classes."
+    )
     application.logger.debug("Training on classes: " + str(list(range(0, n_classes))))
 
     # If all is good unpickle the model
@@ -120,22 +131,25 @@ def train_model(model_id):
     application.logger.debug("Model training successful!!!!")
 
     # Update the trained model in the database
-    cur.execute("UPDATE db.classifiers SET n_trained = %s, clf_bytes = %s WHERE id = %s", (n_trained + 1, pickle.dumps(clf), model_id))
+    cur.execute(
+        "UPDATE db.classifiers SET n_trained = %s, clf_bytes = %s WHERE id = %s",
+        (n_trained + 1, pickle.dumps(clf), model_id),
+    )
     conn.commit()
     cur.close()
     conn.close()
     application.logger.debug("Training model saved successfully!!!!")
-    return jsonify({'message': 'Model trained successfully'})
+    return jsonify({"message": "Model trained successfully"})
 
 
-@application.route('/models/<int:model_id>/predict/', methods=['GET'])
+@application.route("/models/<int:model_id>/predict/", methods=["GET"])
 def predict(model_id):
     # Load and decode query string
-    x = request.args.get('x')
-    x = json.loads(base64.urlsafe_b64decode(x + '==').decode())
+    x = request.args.get("x")
+    x = json.loads(base64.urlsafe_b64decode(x + "==").decode())
     application.logger.debug("Query string: " + str(x))
     if x is None:
-        return jsonify({'error': 'Invalid input data'}), 400
+        return jsonify({"error": "Invalid input data"}), 400
 
     conn = connection_pool.get_connection()
     cur = conn.cursor()
@@ -146,19 +160,20 @@ def predict(model_id):
     conn.close()
 
     if result is None:
-        return jsonify({'error': 'Model not found'}), 404
+        return jsonify({"error": "Model not found"}), 404
 
     model_data, d = result
 
     if len(x) != d:
         application.logger.warning("Dimension of X incorrect")
-        return jsonify({'error': 'Invalid input data'}), 400
+        return jsonify({"error": "Invalid input data"}), 400
 
     clf = pickle.loads(model_data)
     y = clf.predict([x])
     application.logger.debug("Prediction is:" + str(y))
 
-    return jsonify({'y': int(y[0])})
+    return jsonify({"y": int(y[0])})
+
 
 def normalize(x):
     if len(x) == 0:
@@ -167,18 +182,18 @@ def normalize(x):
         return np.array([1.0])
     return (x - np.min(x)) / (np.max(x) - np.min(x))
 
-@application.route('/models/')
+
+@application.route("/models/")
 def get_models():
     # Connect to the database
     conn = connection_pool.get_connection()
     cursor = conn.cursor()
 
     # Query the database to get the model statistics
-    cursor.execute('SELECT id, model, n_trained FROM db.classifiers')
+    cursor.execute("SELECT id, model, n_trained FROM db.classifiers")
     rows = cursor.fetchall()
     application.logger.debug("###### Models fetched #######")
     application.logger.debug(rows)
-
 
     # Initialize dictionaries to keep track of the number of times each model was trained
     sgd_counts = {}
@@ -190,16 +205,22 @@ def get_models():
         id = row[0]
         model = row[1]
         n_trained = row[2]
-        if model == 'SGDClassifier':
+        if model == "SGDClassifier":
             sgd_counts[id] = n_trained
-        elif model == 'CategoricalNB':
+        elif model == "CategoricalNB":
             cat_counts[id] = n_trained
-        elif model == 'MLPClassifier':
+        elif model == "MLPClassifier":
             mlp_counts[id] = n_trained
 
-    application.logger.debug("SGD COUNTS: " + str(sgd_counts) + str(list(sgd_counts.values())))
-    application.logger.debug("CAT COUNTS: " + str(cat_counts)+ str(list(cat_counts.values())))
-    application.logger.debug("MLP COUNTS: " + str(mlp_counts)+ str(list(mlp_counts.values())))
+    application.logger.debug(
+        "SGD COUNTS: " + str(sgd_counts) + str(list(sgd_counts.values()))
+    )
+    application.logger.debug(
+        "CAT COUNTS: " + str(cat_counts) + str(list(cat_counts.values()))
+    )
+    application.logger.debug(
+        "MLP COUNTS: " + str(mlp_counts) + str(list(mlp_counts.values()))
+    )
 
     # Compute the scores for each model type
     sgd_scores = normalize(np.array(list(sgd_counts.values())))
@@ -216,7 +237,7 @@ def get_models():
     application.logger.debug(mlp_scores_dict)
 
     # Query the database again to get the full model statistics
-    cursor.execute('SELECT id, model, n_trained FROM classifiers')
+    cursor.execute("SELECT id, model, n_trained FROM classifiers")
     rows = cursor.fetchall()
 
     # Initialize a list to store the output
@@ -227,21 +248,18 @@ def get_models():
         id = row[0]
         model = row[1]
         n_trained = row[2]
-        if model == 'SGDClassifier':
+        if model == "SGDClassifier":
             score = sgd_scores_dict[id]
-        elif model == 'CategoricalNB':
+        elif model == "CategoricalNB":
             score = cat_scores_dict[id]
-        elif model == 'MLPClassifier':
+        elif model == "MLPClassifier":
             score = mlp_scores_dict[id]
-        output.append({
-            'id': id,
-            'model': model,
-            'n_trained': n_trained,
-            'training_score': score
-        })
+        output.append(
+            {"id": id, "model": model, "n_trained": n_trained, "training_score": score}
+        )
 
     # Close the database connection
     conn.close()
 
     # Return the output as a JSON object
-    return jsonify({'models': output})
+    return jsonify({"models": output})
