@@ -1,0 +1,32 @@
+version: '3.2'
+
+services:
+  mysql:
+    image: mysql:5.7
+    env_file:
+      - .env
+
+  api:
+    build: api
+    depends_on:
+      - mysql
+    env_file:
+      - .env
+    volumes:
+      - type: bind
+        source: ./api
+        target: /api
+        read_only: true
+    entrypoint: uwsgi --ini /api/uwsgi.ini
+
+  client:
+    build: client
+    depends_on:
+      - api
+    volumes:
+      - type: bind
+        source: ./client
+        target: /client
+        read_only: true
+    working_dir: /client
+    command: python3 -m unittest -v api_test.py
