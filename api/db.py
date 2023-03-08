@@ -1,12 +1,6 @@
 import os
 import mysql.connector.pooling
 
-dbconfig = {
-  "database": "test",
-  "user":     "joe",
-}
-
-
 class ConnectionPool:
     def __init__(self, size=5):
         self.size = size
