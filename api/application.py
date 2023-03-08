@@ -48,14 +48,6 @@ def create_model():
         return jsonify({'error': 'Invalid model'}), 400
 
     # Serialize the classifier to binary
-    # TODO: try joblib serializer here instead
-    # import joblib
-    # from io import BytesIO
-    # import base64
-    # with BytesIO() as tmp_bytes:
-    #     joblib.dump({"test": "test"}, tmp_bytes)
-    #     bytes_obj = tmp_bytes.getvalue()
-    #     base64_obj = base64.b64encode(bytes_obj)
     conn = connection_pool.get_connection()
     cur = conn.cursor()
     cur.execute('INSERT INTO db.classifiers (model, params, d, n_classes, clf_bytes) VALUES (%s, %s, %s, %s, %s)', (model, str(params), d, n_classes, pickle.dumps(clf)))
