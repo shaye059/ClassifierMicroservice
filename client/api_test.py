@@ -8,7 +8,7 @@ class ApiTestCase(unittest.TestCase):
     HOST = "http://api:8888"
 
     def test_0_health(self):
-        """anity check to ensure that the API is reachable"""
+        """Sanity check to ensure that the API is reachable"""
         resp = self._request("GET", "/health/")
         assert resp["status"] == "ok"
 
