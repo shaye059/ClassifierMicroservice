@@ -183,6 +183,16 @@ def normalize(x):
     return (x - np.min(x)) / (np.max(x) - np.min(x))
 
 
+def normalize2(x):
+    if len(x) == 0:
+        return np.array([])
+    if len(x) == 1:
+        return np.array([1.0])
+    max_count = np.max(x)
+    normalized_scores = (x / max_count) * (len(x) - 1)
+    return np.around(normalized_scores) / (len(x) - 1)
+
+
 @application.route("/models/")
 def get_models():
     # Connect to the database
@@ -213,9 +223,9 @@ def get_models():
             mlp_counts[id] = n_trained
 
     # Compute the scores for each model type
-    sgd_scores = normalize(np.array(list(sgd_counts.values())))
-    cat_scores = normalize(np.array(list(cat_counts.values())))
-    mlp_scores = normalize(np.array(list(mlp_counts.values())))
+    sgd_scores = normalize2(np.array(list(sgd_counts.values())))
+    cat_scores = normalize2(np.array(list(cat_counts.values())))
+    mlp_scores = normalize2(np.array(list(mlp_counts.values())))
 
     # Re-assign the scores to their model IDs
     sgd_scores_dict = dict(zip(sgd_counts.keys(), sgd_scores.tolist()))
